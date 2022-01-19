@@ -1,48 +1,65 @@
 const express = require('express');
-const { append } = require('express/lib/response');
 const connection = require('./config');
-
+// 3306
 const PORT = process.env.PORT || 3001;
-
 const app = express();
-
-// turn on body parser
-// this creates req.body
+// turn on body-parser
+// makes req.body exist
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// endpoint to create a todo
-// declaring a function as async allows us to use
-// await syntax inside of that function
-app.post('/api/todos', async (req, res) => {
-    const { task } = req.body;
-    if (!task) {
-        // if there is no task, send an error message
-        return res.status(400).json({ error: 'You must provide a task'});
-    } 
-    // if there is a task, save it to the database
-    // JS will TRY to run every single line of code inside of the try{} block
-    // if any line of the code throws an error JS will take that error and put
-    // that error in the catch block then run the codfe in the catch block
-    try {
-        const insertQuery = 'INSERT INTO todos(task) VALUES(?);';
-        const getTodoById = 'SELECT * FROM todos WHERE id = ?;';
-        // putting [] around result destructures the first element of the result
-        // array.
-        // whever we do an insert, update, or delete query in mysql2 or mysql mpm package
-        // it doesn't give us the data that was interacticed with.  In instead tells us
-        // information about how many rows were affected and maybe the insertId or updateId of
-        // the regarding data.
-        // It also gives us an array with 2 elements.  The first one is an object where
-        // we have the information we need.  The second one is null or information about the field
-        // of that row.
-        const [result] = await connection.query(insertQuery, [task]);
-        const [todosResult] = await connection.query(getTodoById, [result.insertId]);
-
-        res.json(todosResult[0]);
-    } catch (e) {
-        res.status(400).json(e);
-    }
+// USER API's
+app.post('/api/users', async (req, res) => {
+  const { username } = req.body;
+  if (!username) {
+    return res.status(400).json({ error: 'You must provide a username'});
+  }
+  try {
+    const createUserQuery = 'INSERT INTO users(username) VALUES(?);';
+    const getUserByIdQuery = 'SELECT * FROM users WHERE id = ?;';
+    const [result] = await connection.query(createUserQuery, [username]);
+    const [userResult] = await connection.query(getUserByIdQuery, [result.insertId]);
+    res.json(userResult[0]);
+  } catch (e) {
+    res.status(400).json(e);
+  }
 });
-
-app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
+app.get('/api/todos', async (req, res) => {
+  try {
+    const getAllTodosQuery = 'SELECT * FROM todos;';
+    const [ todos ] = await connection.query(getAllTodosQuery);
+    res.json(todos);
+  } catch (e) {
+    res.status(400).json(e);
+  }
+});
+// POST - create todo
+// async await
+// Declaring a function as "async" allows us to use "await" syntax inside of that function
+app.post('/api/todos', async (req, res) => {
+  // { task: 'Sleep' }
+  const { task } = req.body;
+  // If the user does not provide a task, respond with an error
+  if(!task) {
+    return res.status(400).json({ error: 'You must provide a task'});
+  }
+//  if there is a task save it to the database
+//  JS will "try" to run every single line of code inside of the "try" block
+//  if any lines of the code throws an error, JS will take that error and
+//  put that error in the "catch" block, and then run the code in the "catch" block
+  try {
+  // many lines of code....
+    const insertQuery = 'INSERT INTO todos(task) VALUES(?);';
+    const getTodoById = 'SELECT * FROM todos WHERE id = ?;';
+    const [result,] = await connection.query(insertQuery, [task]);
+    // Whenever we do an INSERT, UPDATE, OR DELETE query in mysql2 or mysql npm package
+    // it doesn't give us the data that was interacted with. it instead tells us information
+    // about how many rows were affected and maybe the insertId or updateId of the regarding data.
+    // It also gives us an array with 2 elements. The 1st one is an object where we have the information we need
+    // 2nd one is null or information about the fields of that row
+    const [todosResult] = await connection.query(getTodoById, [result.insertId]);
+    res.json(todosResult[0]);
+  } catch (e) {
+    res.status(400).json(e);
+  }
+});
+app.listen(PORT, () => console.log(`Server listening on port: ${PORT}`));
